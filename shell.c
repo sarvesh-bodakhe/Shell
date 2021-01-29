@@ -33,7 +33,7 @@ void print_cmd_struct(cmd_struct *ptr){
 }
 
 cmd_struct* make_cmd_struct(cmd_struct *ptr, char *cmd){
-    printf("In make_cmd_struct.cmd=%s\n", cmd);
+    // printf("In make_cmd_struct.cmd=%s\n", cmd);
     int i=0, j=0;
     int flag = 1;
     int arg_count = 0;
@@ -53,7 +53,6 @@ cmd_struct* make_cmd_struct(cmd_struct *ptr, char *cmd){
                 str[x] = '\0';
                 ptr->arglist[arg_count] = (char*) malloc(sizeof(str));
                 ptr->arglist[arg_count] = str;
-                // printf("arglist[%d]:%s\n",arg_count, ptr->arglist[arg_count]);
                 arg_count++;
                 flag=1;
             }    
@@ -68,7 +67,6 @@ cmd_struct* make_cmd_struct(cmd_struct *ptr, char *cmd){
         j++;
     }
     if(flag == 0){
-        // printf("Word from size=%d. %d to %d:",j-i+1, i, j);              
         char* str = (char*) malloc(sizeof(char) * (j-i+1));
         int x=0;
         for(int k=i; k<j; k++){
@@ -77,7 +75,6 @@ cmd_struct* make_cmd_struct(cmd_struct *ptr, char *cmd){
         str[x] = '\0';
         ptr->arglist[arg_count] = (char*) malloc(sizeof(str));
         ptr->arglist[arg_count] = str; 
-        // printf("arglist[%d]:%s\n",arg_count, ptr->arglist[arg_count]);
         arg_count++;
     }
     printf("Command:%s\n", ptr->arglist[0]);
@@ -85,7 +82,6 @@ cmd_struct* make_cmd_struct(cmd_struct *ptr, char *cmd){
     ptr->arg_count = arg_count;
 
     print_cmd_struct(ptr);
-    // printf("cmd=%s\n", token);
     return ptr;
 }
 
@@ -100,32 +96,19 @@ int find_no_commands(char *line){
     return total_commands;
 }
 
-cmd_struct*  parse(cmd_struct **cmd_list,char **op_list,  char **line, int *total_commands){
+cmd_struct*  parse(char **op_list,  char **line, int *total_commands){
     printf("In parse() function. Line:%s\n", *line);
     char pipeline_delim = '|';
     char input_redirection_delim = '<';
     char output_redirection_delin = '>';
     
-    
-    // token = strtok(*line, "><|");
-    
-    
-    // int total_commands = 0;
-    // char *token1 = strtok(*line, "|");
-    // while(token1 != NULL){
-    //     total_commands++;
-    //     token1 = strtok(NULL, "|");
-    // }
-    // printf("Total Commands:%d\n", total_commands);
-    cmd_list = (cmd_struct**)malloc(sizeof(cmd_struct**)*10);
+
+    cmd_struct ** cmd_list = (cmd_struct**)malloc(sizeof(cmd_struct**)*10);
     int cmd_count = 0;
     char *token = strtok(*line, "|");
     while(token != NULL){
         printf("Command No.%d => %s\n", cmd_count+1, token);
-        
-        // printf("token:%s\n", token);
         cmd_struct* ptr = make_cmd_struct(cmd_list[cmd_count], token);
-        // printf("Debug Command%s\n", ptr->command);
         cmd_list[cmd_count] = (cmd_struct*) malloc(sizeof(cmd_struct*));
         cmd_list[cmd_count] = ptr;
         token = strtok(NULL, "|");     
@@ -135,7 +118,6 @@ cmd_struct*  parse(cmd_struct **cmd_list,char **op_list,  char **line, int *tota
     *total_commands = cmd_count;
     
     cmd_struct *list = *cmd_list;
-    printf("%d\n", cmd_list[0]->arg_count);  
     return list;
 }
 
@@ -160,12 +142,9 @@ int main(int argc, char* argv[]){
 
     
     int total_commands = 0;
-    cmd_list = parse(&cmd_list, &op_list, &line, &total_commands);
+    cmd_list = parse( &op_list, &line, &total_commands);
     printf("Total Commands in main():%d\n", total_commands);
 
-    printf("sizeof(cmd_list[0]):%ld\n", sizeof(cmd_list[0].arg_count));
-    printf("sizeof(cmd_struct):%ld\n", sizeof(cmd_struct));
-    printf("%s\n", cmd_list[0].command);  
 
     // for(int i=0; i<total_commands; i++){
     //     print_cmd_struct(&cmd_list[i]);

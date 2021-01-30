@@ -43,6 +43,12 @@ void print_cmd_struct(cmd_struct *ptr){
 
 }
 
+/*
+    TODO 
+    Multople Redirecions
+*/
+
+
 cmd_struct* make_cmd_struct(char *cmd){
     printf("\nIn make_cmd_struct():\n");
     // printf("In make_cmd_struct.cmd=%s\n", cmd);

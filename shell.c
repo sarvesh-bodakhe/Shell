@@ -4,6 +4,8 @@
 #include <sys/wait.h>
 #include <stdio.h>
 #include<string.h>
+#include<fcntl.h> 
+#include<stdlib.h>
 
 #define PATH_MAX 30
 
@@ -51,10 +53,10 @@ cmd_struct* make_cmd_struct(char *cmd){
     cmd_struct *ptr = (cmd_struct*) malloc(sizeof(cmd_struct));
     ptr->arglist = (char**) malloc(sizeof(char**) * 10);
     while(cmd[j] != '\0'){
-        // printf("%d:%c", j, cmd[j]);
+        // printf("\t%d:%c\n", j, cmd[j]);
         if(cmd[j] == ' '){
             if(flag == 0){
-                // printf("Word from size=%d. %d to %d:",j-i+1, i, j);              
+                // printf("\tWord from size=%d. %d to %d:",j-i+1, i, j);              
                 int size = j-i;
                 char* str = (char*) malloc(sizeof(char) * (size+1));
                 int x=0;
@@ -62,22 +64,24 @@ cmd_struct* make_cmd_struct(char *cmd){
                     str[x++] = cmd[k];
                 }   
                 str[x] = '\0';
+                // printf("%s\n", str);
                 /* Redirection Operator has encountered */
                 if(redirection_flag == 1){
+                    printf("\tFile after redirection:%s\n", str);
                     ptr->file_name = (char*)malloc(sizeof(str));
                     ptr->file_name = str;
                     flag=1;
                     continue;
                 }
                 if(strcmp(str, "<")==0){
-                    printf("\tRedirection Detected:%s\n", str);
+                    printf("\tInput Redirection Detected:%s\n", str);
                     ptr->is_in_redirection = 1;
                     redirection_flag = 1;
                     flag=1;
                     continue;
                 }
                 if(strcmp(str, ">")==0){
-                    printf("\tRedirection Detected:%s\n", str);
+                    printf("\tOutput Redirection Detected:%s\n", str);
                     ptr->is_out_redirection = 1;
                     flag=1;
                     redirection_flag = 1;
@@ -105,15 +109,23 @@ cmd_struct* make_cmd_struct(char *cmd){
             str[x++] = cmd[k];
         }
         str[x] = '\0';
-        ptr->arglist[arg_count] = (char*) malloc(sizeof(str));
-        ptr->arglist[arg_count] = str; 
-        arg_count++;
+        if(redirection_flag == 1){
+                    printf("\tFile after redirectoin:%s\n", str);
+                    ptr->file_name = (char*)malloc(sizeof(str));
+                    ptr->file_name = str;
+                    flag=1;
+        }
+        else{
+            ptr->arglist[arg_count] = (char*) malloc(sizeof(str));
+            ptr->arglist[arg_count] = str; 
+            arg_count++;
+        }
     }
     // printf("Command:%s\n", ptr->arglist[0]);
     ptr->command = ptr->arglist[0];
     ptr->arg_count = arg_count;
 
-    print_cmd_struct(ptr);
+    // print_cmd_struct(ptr);
     return ptr;
 }
 
@@ -164,29 +176,52 @@ void execute_commands(cmd_struct* cmd_list, int total_commands){
     // printf("\tOutput:\n\n");
     for(int i=0; i<total_commands; i++){
         cmd_struct *ptr = &cmd_list[i];
-        // print_cmd_struct(&cmd_list[i]);
+        print_cmd_struct(&cmd_list[i]);
+
+        /*Creating Child process to run command*/
         int pid = fork();
         if(pid < 0){
-            perror("fork() failed\n");
+            perror("\tfork() failed\n");
             exit(0);
         }
         if(pid == 0){
-            printf("In child process. Calling execvp()\n");
-            // execvp("ls",arglist);
+            printf("\tIn child process.\n");
+            // execvp("ls",arglist);    
+            if(ptr->is_out_redirection){
+                /*Closing Screen Output*/
+                printf("\toutput redirection.calling close(1)\n");
+                // printf("\tptr->file_name:%s\n", ptr->file_name);
+                close(1);
+                int fd_temp = open(ptr->file_name, O_RDWR);
+                printf("\tclose(1) finished\n");
+                printf("\tNew File Descriptor:%d\n", fd_temp);
+                
+            }            
+            if(ptr->is_in_redirection){
+                printf("\tinput redirection.calling close(0)\n");
+                close(0);
+                int fd = open(ptr->file_name, O_RDONLY);
+                printf("\tnew file descriptor fd=%d\n", fd);
+            }
             execvp(ptr->command,ptr->arglist);
             exit(0);
         }
         if(pid > 0){
-            printf("In parent process\n");
             wait(NULL);
+            printf("\tIn parent process\n");
+            
         }
 
-        if(ptr->is_out_redirection){
-            /*Closing Screen Output*/
-            close(1);
-        }
         // execvp(ptr->command, ptr->arglist);
     }
+}
+
+void highlight () {
+  printf("\033[0;45m");
+  
+}
+void reset () {
+  printf("\033[0m");
 }
 
 
@@ -199,7 +234,7 @@ int main(int argc, char* argv[]){
         perror("getcwd() error\n");
         return 1;
     }
-    char* promt = strcat(cwd, "$ ");
+    char* promt = strcat(cwd, "$");
     // printf("cwd:%s\n", cwd);
 
     while(1){
@@ -207,8 +242,9 @@ int main(int argc, char* argv[]){
         size_t len = 0;
         ssize_t linesize = 0;
 
-        
+        highlight();
         printf("%s", promt);
+        reset();
         cmd_struct* cmd_list = NULL;
         char* op_list = "";
 

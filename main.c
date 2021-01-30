@@ -21,12 +21,19 @@ int main(){
     }
     if(pd == 0){
         printf("In child process. Calling execvp()\n");
-        // execvp("ls",arglist);
-        char* binaryPath = "ls";
-        char* arg1 = "-l";
-        char* arg2 = "/home";
-        char* arglist[] = {binaryPath ,arg1, arg2, NULL};    
-        execvp(binaryPath, arglist);
+        // char* binaryPath = "ls";
+        // char* arg1 = "-l";
+        // char* arg2 = "/home";
+        // char* arglist[] = {binaryPath ,arg1, arg2, NULL};    
+        // execvp(binaryPath, arglist);
+
+        close(1);
+        if(fork() == 0){
+            close(1);
+            exit(0);    
+        }
+        wait(NULL);
+        printf("After close(1)\n");
         exit(0);
     }
     if(pd > 0){

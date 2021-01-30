@@ -1,1 +1,1 @@
-ls -a | grep sarvesh
+ls   -l   >    temp   

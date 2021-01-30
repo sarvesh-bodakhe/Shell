@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include<string.h>
 
+#define PATH_MAX 30
+
 typedef struct cmd_struct{
     char* command;
     
@@ -18,26 +20,35 @@ typedef struct cmd_struct{
 }cmd_struct;
 
 void print_cmd_struct(cmd_struct *ptr){
-    printf("\nCommand Strcture ->\n");
-    printf("1.Command:%s\n", ptr->command);
-    printf("2.argoument count:%d\n", ptr->arg_count);
-    printf("3.Arguments:");
+    printf("\nPrinting Command Strcture():\n");
+    printf("\t1.Command:\t%s\n", ptr->command);
+    printf("\t2.arg_count:\t%d\n", ptr->arg_count);
+    printf("\t3.Arguments:\t");
     for(int i=0; i<ptr->arg_count; i++){
         printf("%s ",  ptr->arglist[i]);
     }
     printf("\n");
-    printf("4.input redirection?:%d\n", ptr->is_in_redirection);
-    printf("5.output redirection?:%d\n", ptr->is_out_redirection);
-    printf("6.file_name:%s\n\n", ptr->file_name);
+    if(ptr->is_in_redirection == 1)
+        printf("\t4.Input Redirection\n");
+    if(ptr->is_out_redirection == 1)
+        printf("\t4.Output Redirection\n"); 
+    if(ptr->file_name)
+        printf("\t5.file_name:%s\n", ptr->file_name);
+
+    // printf("4.input redirection?:%d\n", ptr->is_in_redirection);
+    // printf("5.output redirection?:%d\n", ptr->is_out_redirection);
+    // printf("6.file_name:%s\n\n", ptr->file_name);
 
 }
 
-cmd_struct* make_cmd_struct(cmd_struct *ptr, char *cmd){
+cmd_struct* make_cmd_struct(char *cmd){
+    printf("\nIn make_cmd_struct():\n");
     // printf("In make_cmd_struct.cmd=%s\n", cmd);
     int i=0, j=0;
     int flag = 1;
     int arg_count = 0;
-    ptr = (cmd_struct*) malloc(sizeof(cmd_struct));
+    int redirection_flag = 0;
+    cmd_struct *ptr = (cmd_struct*) malloc(sizeof(cmd_struct));
     ptr->arglist = (char**) malloc(sizeof(char**) * 10);
     while(cmd[j] != '\0'){
         // printf("%d:%c", j, cmd[j]);
@@ -51,6 +62,27 @@ cmd_struct* make_cmd_struct(cmd_struct *ptr, char *cmd){
                     str[x++] = cmd[k];
                 }   
                 str[x] = '\0';
+                /* Redirection Operator has encountered */
+                if(redirection_flag == 1){
+                    ptr->file_name = (char*)malloc(sizeof(str));
+                    ptr->file_name = str;
+                    flag=1;
+                    continue;
+                }
+                if(strcmp(str, "<")==0){
+                    printf("\tRedirection Detected:%s\n", str);
+                    ptr->is_in_redirection = 1;
+                    redirection_flag = 1;
+                    flag=1;
+                    continue;
+                }
+                if(strcmp(str, ">")==0){
+                    printf("\tRedirection Detected:%s\n", str);
+                    ptr->is_out_redirection = 1;
+                    flag=1;
+                    redirection_flag = 1;
+                    continue;
+                }
                 ptr->arglist[arg_count] = (char*) malloc(sizeof(str));
                 ptr->arglist[arg_count] = str;
                 arg_count++;
@@ -77,7 +109,7 @@ cmd_struct* make_cmd_struct(cmd_struct *ptr, char *cmd){
         ptr->arglist[arg_count] = str; 
         arg_count++;
     }
-    printf("Command:%s\n", ptr->arglist[0]);
+    // printf("Command:%s\n", ptr->arglist[0]);
     ptr->command = ptr->arglist[0];
     ptr->arg_count = arg_count;
 
@@ -97,54 +129,102 @@ int find_no_commands(char *line){
 }
 
 cmd_struct*  parse(char **op_list,  char **line, int *total_commands){
-    printf("In parse() function. Line:%s\n", *line);
+    printf("\nIn parse():\n");
+    // printf("In parse() function. Line:%s\n", *line);
     char pipeline_delim = '|';
     char input_redirection_delim = '<';
     char output_redirection_delin = '>';
     
-
+    // Maxmimum Of 10 Commnads in a single line
     cmd_struct ** cmd_list = (cmd_struct**)malloc(sizeof(cmd_struct**)*10);
     int cmd_count = 0;
     char *token = strtok(*line, "|");
+    printf("\tTravesring All Commands\n");
     while(token != NULL){
-        printf("Command No.%d => %s\n", cmd_count+1, token);
-        cmd_struct* ptr = make_cmd_struct(cmd_list[cmd_count], token);
+        printf("\tCommand No.%d => %s\n", cmd_count+1, token);
+        // Make a command struct from string pointed by ptr
+        cmd_struct* ptr = make_cmd_struct(token);
         cmd_list[cmd_count] = (cmd_struct*) malloc(sizeof(cmd_struct*));
         cmd_list[cmd_count] = ptr;
         token = strtok(NULL, "|");     
         cmd_count++;
     }
-    printf("Total commands:%d\n", cmd_count);
+    // printf("Total commands:%d\n", cmd_count);
     *total_commands = cmd_count;
     
     cmd_struct *list = *cmd_list;
     return list;
 }
 
+
+
+void execute_commands(cmd_struct* cmd_list, int total_commands){
+    printf("\nIn execute_commands():\n");
+    printf("\t-Total Commands:%d\n", total_commands);
+    // printf("\tOutput:\n\n");
+    for(int i=0; i<total_commands; i++){
+        cmd_struct *ptr = &cmd_list[i];
+        // print_cmd_struct(&cmd_list[i]);
+        int pid = fork();
+        if(pid < 0){
+            perror("fork() failed\n");
+            exit(0);
+        }
+        if(pid == 0){
+            printf("In child process. Calling execvp()\n");
+            // execvp("ls",arglist);
+            execvp(ptr->command,ptr->arglist);
+            exit(0);
+        }
+        if(pid > 0){
+            printf("In parent process\n");
+            wait(NULL);
+        }
+
+        if(ptr->is_out_redirection){
+            /*Closing Screen Output*/
+            close(1);
+        }
+        // execvp(ptr->command, ptr->arglist);
+    }
+}
+
+
 int main(int argc, char* argv[]){
-    char* ENV = "/home/luffy/anaconda3/bin:/home/luffy/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin";
+    char* PATH = "/home/luffy/anaconda3/bin:/home/luffy/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin";
+    char cwd[100];
     
-    char *line = NULL;
-    size_t len = 0;
-    ssize_t linesize = 0;
-    char* promt = "$";
+    // getcwd(cwd, sizeof(cwd));
+    if(getcwd(cwd, 100) == NULL){
+        perror("getcwd() error\n");
+        return 1;
+    }
+    char* promt = strcat(cwd, "$ ");
+    // printf("cwd:%s\n", cwd);
 
+    while(1){
+        char *line = NULL;
+        size_t len = 0;
+        ssize_t linesize = 0;
+
+        
+        printf("%s", promt);
+        cmd_struct* cmd_list = NULL;
+        char* op_list = "";
+
+
+        linesize = getline(&line, &len, stdin);
+        line[linesize-1] = '\0';
+
+        
+        int total_commands = 0;
+        cmd_list = parse(&op_list, &line, &total_commands);
+
+        // printf("\n\nTotal Commands in main():%d\n\n\n", total_commands);
+        
+        execute_commands(cmd_list, total_commands);
+    }
     
-    printf("%s", promt);
-    cmd_struct* cmd_list = NULL;
-    char* op_list = "";
-
-
-    linesize = getline(&line, &len, stdin);
-    line[linesize-1] = '\0';
-
-    
-
-    
-    int total_commands = 0;
-    cmd_list = parse( &op_list, &line, &total_commands);
-    printf("Total Commands in main():%d\n", total_commands);
-
 
     // for(int i=0; i<total_commands; i++){
     //     print_cmd_struct(&cmd_list[i]);

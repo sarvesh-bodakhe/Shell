@@ -1,0 +1,9 @@
+total 92
+-rw-rw-r-- 1 luffy luffy     0 Feb  7 00:57 abc.txt
+-rwxrwxr-x 1 luffy luffy 17008 Jan 30 22:52 main
+-rw-rw-r-- 1 luffy luffy   947 Jan 30 22:49 main.c
+-rwxrwxr-x 1 luffy luffy 22072 Feb  7 00:59 shell
+-rw-rw-r-- 1 luffy luffy 15050 Feb  7 00:58 shell.c
+-rwxrwxr-x 1 luffy luffy 16800 Jan 30 23:27 sum
+-rw-rw-r-- 1 luffy luffy   125 Jan 30 23:27 sum.c
+-rw-rw-r-- 1 luffy luffy    95 Feb  7 00:58 temp.txt

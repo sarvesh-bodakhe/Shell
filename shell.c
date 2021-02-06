@@ -10,6 +10,8 @@
 #define PATH_MAX 30
 enum redirection{NO, IN, OUT};
 
+ 
+
 struct cmd_struct{
 	char* command; 
 	enum redirection *redirections;
@@ -57,7 +59,7 @@ void print_cmd_struct(struct cmd_struct *ptr){
 
 
 struct cmd_struct* make_cmd_struct(char *cmd){
-    printf("\tIn make_cmd_struct():\n");
+    // printf("\tIn make_cmd_struct():\n");
     // printf("In make_cmd_struct.cmd=%s\n", cmd);
     int i=0, j=0;
     int flag = 1;
@@ -80,21 +82,21 @@ struct cmd_struct* make_cmd_struct(char *cmd){
                 // printf("%s\n", str);
                 /* Redirection Operator has encountered */
                 if(redirection_flag == 1){
-                    printf("\tFile after redirection:%s\n", str);
+                    // printf("\tFile after redirection:%s\n", str);
                     ptr->file_name = (char*)malloc(sizeof(str));
                     ptr->file_name = str;
                     flag=1;
                     continue;
                 }
                 if(strcmp(str, "<")==0){
-                    printf("\tInput Redirection Detected:%s\n", str);
+                    // printf("\tInput Redirection Detected:%s\n", str);
                     ptr->is_in_redirection = 1;
                     redirection_flag = 1;
                     flag=1;
                     continue;
                 }
                 if(strcmp(str, ">")==0){
-                    printf("\tOutput Redirection Detected:%s\n", str);
+                    // printf("\tOutput Redirection Detected:%s\n", str);
                     ptr->is_out_redirection = 1;
                     flag=1;
                     redirection_flag = 1;
@@ -123,7 +125,7 @@ struct cmd_struct* make_cmd_struct(char *cmd){
         }
         str[x] = '\0';
         if(redirection_flag == 1){
-                    printf("\tFile after redirectoin:%s\n", str);
+                    // printf("\tFile after redirectoin:%s\n", str);
                     ptr->file_name = (char*)malloc(sizeof(str));
                     ptr->file_name = str;
                     flag=1;
@@ -154,7 +156,7 @@ int find_no_commands(char *line){
 }
 
 struct cmd_struct**  parse(char **op_list,  char **line, int *total_commands){
-    printf("\nIn parse():\n");
+    // printf("\nIn parse():\n");
     // printf("In parse() function. Line:%s\n", *line);
     char pipeline_delim = '|';
     char input_redirection_delim = '<';
@@ -164,9 +166,9 @@ struct cmd_struct**  parse(char **op_list,  char **line, int *total_commands){
     struct cmd_struct** cmd_list = (struct cmd_struct**)malloc(sizeof(struct cmd_struct**)*10);
     int cmd_count = 0;
     char *token = strtok(*line, "|");
-    printf("\tTravesring All Commands\n");
+    // printf("\tTravesring All Commands\n");
     while(token != NULL){
-        printf("\tCommand No.%d => %s\n", cmd_count+1, token);
+        // printf("\tCommand No.%d => %s\n", cmd_count+1, token);
         // Make a command struct from string pointed by ptr
         struct cmd_struct *ptr = (struct cmd_struct*)malloc(sizeof(struct cmd_struct));
         ptr = make_cmd_struct(token);   
@@ -177,7 +179,7 @@ struct cmd_struct**  parse(char **op_list,  char **line, int *total_commands){
         token = strtok(NULL, "|");     
         cmd_count++;
     }
-    printf("Total commands In Parse():%d\n", cmd_count);
+    // printf("Total commands In Parse():%d\n", cmd_count);
     *total_commands = cmd_count;
     
     /*
@@ -197,14 +199,31 @@ struct cmd_struct**  parse(char **op_list,  char **line, int *total_commands){
 void execute_commands(struct cmd_struct** cmd_list, int total_commands){
     printf("\nIn execute_commands():\n");
     printf("\tTotal Commands:%d\n", total_commands);
+    int no_of_pipes = total_commands-1;
+    printf("\tNumber of Pipes required:%d\n", no_of_pipes);
     // printf("\tOutput:\n\n");
     int pipe_flag=0;
     int flag_write_into_pipe=0, flag_read_from_pipe=0;
     int pfd[2];
+    /*Initialize Pipes*/
+    int pipe_count = 0;
+    int **pfd_arr = (int**)malloc(sizeof(int*) * no_of_pipes);
+    for(int i=0; i<no_of_pipes; i++){
+        pfd_arr[i] = (int*)malloc(sizeof(int)*2);
+    }
+
     /*Pipe Needed*/
     if(total_commands > 1){
         pipe(pfd);
     }
+
+    for(int i=0; i<total_commands; i++){
+        struct cmd_struct *ptr =   cmd_list[i];
+        print_cmd_struct(ptr);
+    }
+
+    
+
     for(int i=0; i<total_commands; i++){
         
         struct cmd_struct *ptr =   cmd_list[i];
@@ -214,6 +233,7 @@ void execute_commands(struct cmd_struct** cmd_list, int total_commands){
         /*Need For Pipe*/
         if(i < total_commands-1){
             printf("\t** Need For Pipe. Write into pipe\n");
+            printf("\tWrite into pipe no:%d\n", i);
             pipe_flag = 1;
             flag_write_into_pipe = 1;
             flag_read_from_pipe = 1;
@@ -226,13 +246,9 @@ void execute_commands(struct cmd_struct** cmd_list, int total_commands){
         }
         if(cpid == 0){
             printf("\tIn child process1.\n");
-            // print_cmd_struct(&cmd_list[i]);
-            
-            // execvp("ls",arglist);    
             if(ptr->is_out_redirection){
                 /*Closing Screen Output*/
                 printf("\toutput redirection.calling close(1)\n");
-                // printf("\tptr->file_name:%s\n", ptr->file_name);
                 close(1);
                 int fd_temp = open(ptr->file_name, O_RDWR);
                 printf("\tclose(1) finished\n");
@@ -253,12 +269,8 @@ void execute_commands(struct cmd_struct** cmd_list, int total_commands){
                 close(pfd[0]);
                 flag_read_from_pipe = 1;
                 flag_write_into_pipe = 0;
-                // printf("Mapped pfd[1] ie. pipe's write end to screen(1)\n");
             }
-            // printf("\tExecuting Command %d\n", i);
             execvp(ptr->command,ptr->arglist);
-            // printf("\tCommand Executed Successfully\n");
-            // exit(0);
         }
         if(cpid > 0){
             // wait(NULL);
@@ -280,35 +292,133 @@ void execute_commands(struct cmd_struct** cmd_list, int total_commands){
                     dup(pfd[0]);
                     close(pfd[1]);
                     printf("\tprinting pipe[0]:\n");
-                    // while(scanf("%s", str3)){
-                    //     printf("%s", str3);
-                    // }
                     // while(read(0, str3,1000) != -1){
                     //     printf("%s", str3);
                     // }
-                    printf("\n***\n ");
-                    lseek(0, SEEK_SET,0);
-                    // gets(str3);
-                    // printf("str3:%s\n",str3 );
                     printf("\tExecuting Command %d. %s\n", i, ptr->command);
+                    
                     execvp(ptr->command,ptr->arglist);
-                    exit(0);
                     printf("\tCommand %d exectued\n", i);
+                    exit(0);
+                    
                 }
                 if(cpid2 > 0){   
-                    // wait(NULL);
+    
                     printf("\twait()2 call returned from child id:%d\n", cpid2);
                     
                 }
             }
-            wait(NULL);  
-            // printf("\twait()2 call returned.In parent process2\n");
-            // printf("Last line of parent of child 1\n");
-            
+            wait(NULL);     
         }
     }
     printf("Out of for loop. All commands executed\n");
 }
+
+
+
+int check_for_write(int command_no, int no_of_pipes){
+    if(no_of_pipes == 0)
+        return 0;
+    if(command_no==0)
+        return 1;
+    if(command_no < no_of_pipes)
+        return 1;
+    return 0;
+}
+
+int check_for_read(int command_no, int no_of_pipes){
+    if(no_of_pipes == 0)
+        return 0;
+    if(command_no == 0)
+        return 0;
+    if(command_no < no_of_pipes+1)
+        return 1;
+    return 0;
+}
+
+void execute_single_command(struct cmd_struct *ptr){
+    if(ptr->is_out_redirection){
+        /*Closing Screen Output*/
+        // printf("\toutput redirection.calling close(1)\n");
+        close(1);
+        int fd_temp = open(ptr->file_name, O_CREAT|O_RDWR,0666);
+        // printf("\tclose(1) finished\n");
+        // printf("\tNew File Descriptor:%d\n", fd_temp);
+                
+    }            
+    if(ptr->is_in_redirection){
+        // printf("\tinput redirection.calling close(0)\n");
+        close(0);
+        int fd = open(ptr->file_name, O_RDONLY);
+        // printf("\tnew file descriptor fd=%d\n", fd);
+    }
+
+    execvp(ptr->command,ptr->arglist);
+}
+
+void execute_commands2(struct cmd_struct** cmd_list, int total_commands){
+    int no_of_pipes = total_commands-1;
+    // printf("\n\nIn execute_commands():Total Commands:%d\n\tNumber Of pipes required:%d\n\n", total_commands, no_of_pipes);
+    int flag_write_into_pipe=0, flag_read_from_pipe=0, pipe_flag=0;
+    int pfd[2];
+    
+
+    // for(int i=0; i<total_commands; i++){
+    //     struct cmd_struct *ptr =   cmd_list[i];
+    //     print_cmd_struct(ptr);
+    // }printf("\n");
+    
+    /*Initialize Pipes*/
+    int pipe_count = 0;
+    int **pipe_arr = (int**)malloc(sizeof(int*) * no_of_pipes);
+    int *process_arr = (int*)malloc(sizeof(int)*total_commands);
+
+    for(int i=0; i<no_of_pipes; i++){
+        pipe_arr[i] = (int*)malloc(sizeof(int)*2);
+        pipe(pipe_arr[i]);
+    }
+
+    for(int i=0; i<total_commands; i++){
+        process_arr[i] = fork();
+        if(process_arr[i] == -1){
+            perror("process_arr[i] = fork() failed\n");
+            exit(1);
+        }  
+        if(process_arr[i] == 0){
+            // printf("in child process: process_arr[%d]\n", i);
+            if(check_for_read(i, no_of_pipes) == 1){
+                // printf("\tprocess_arr[%d] should read  from pipe no[%d]\n", i, i-1);
+                close(0);
+                char str3[100];
+                dup(pipe_arr[i-1][0]);
+                close(pipe_arr[i-1][1]);
+            }
+            if(check_for_write(i, no_of_pipes) == 1){
+                // printf("\tprocess_arr[%d] should write into pipe no[%d]\n", i, i);
+                // printf("\tpipe[%d] created\n", i);
+                close(1);
+                dup(pipe_arr[i][1]);
+                close(pipe_arr[i][0]);
+            }
+            
+            struct cmd_struct *ptr =   cmd_list[i];
+            execute_single_command(ptr);
+            exit(0);
+        }
+        if(process_arr[i] > 0){
+            
+            wait(NULL);
+            if(check_for_read(i, no_of_pipes) == 1)
+                close(pipe_arr[i-1][0]);
+            if(check_for_write(i, no_of_pipes) == 1)
+                close(pipe_arr[i][1]);
+            // printf("\tin parent of process[%d]\n", i);
+        }
+    }
+    // printf("Out Of the for loop\n");
+}
+
+
 
 void highlight () {
   printf("\033[0;45m");
@@ -322,7 +432,7 @@ void reset () {
 int main(int argc, char* argv[]){
     char* PATH = "/home/luffy/anaconda3/bin:/home/luffy/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin";
     char cwd[100];
-    
+    // printf("STDOUT_FILENO:%d\n", STDOUT_FILENO);
     // getcwd(cwd, sizeof(cwd));
     if(getcwd(cwd, 100) == NULL){
         perror("getcwd() error\n");
@@ -332,20 +442,27 @@ int main(int argc, char* argv[]){
     // printf("cwd:%s\n", cwd);
 
     while(1){
+        if(getcwd(cwd, 100) == NULL){
+            perror("getcwd() error\n");
+            return 1;
+        }
+        char* promt = strcat(cwd, "$");
         char *line = NULL;
         size_t len = 0;
         ssize_t linesize = 0;
 
         highlight();
         printf("%s", promt);
-        reset();
+        reset();printf(" ");
+        
         struct cmd_struct** cmd_list = NULL;
         char* op_list = "";
 
 
         linesize = getline(&line, &len, stdin);
         line[linesize-1] = '\0';
-
+        if(strcmp(line, "exit") == 0)
+            exit(0);
         
         int total_commands = 0;
         cmd_list = parse(&op_list, &line, &total_commands);
@@ -359,7 +476,7 @@ int main(int argc, char* argv[]){
             // }
         
         
-         execute_commands(cmd_list, total_commands);
+         execute_commands2(cmd_list, total_commands);
     }
     
 

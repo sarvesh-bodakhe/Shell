@@ -6,12 +6,33 @@
 #include<string.h>
 #include<fcntl.h> 
 #include<stdlib.h>
+#include<signal.h>
+#include "list.h"
+
+struct job* job_list = NULL;
 
 #define PATH_MAX 30
 enum redirection{NO, IN, OUT};
 
- 
+int runnning_proc;
+char runnning_proc_name[40];
+char* promt;
+int stopped_job_counter;
 
+void signal_init_shell(void);
+void signal_init_child();
+void int_handler(int);
+void stop_handler(int);
+void cont_handler(int);
+void backgound();
+void foreground();
+void showJobs();
+
+
+/*
+    Sarvesh:    Structure to hold information about single command
+
+*/
 struct cmd_struct{
 	char* command; 
     int is_in_redirection ;
@@ -24,11 +45,17 @@ struct cmd_struct{
     char *redirections;
 }cmd_struct;
 
+
+/*
+    Sarvesh:    Structure to hold information about signle command line
+*/
 struct cmd_line_struct{
     struct cmd_struct* cmd_list;
     int no_of_commands;
     
 }cmd_line_struct;
+
+
 
 void print_cmd_struct(struct cmd_struct *ptr){
     printf("Printing Command Strcture():\n");
@@ -47,9 +74,13 @@ void print_cmd_struct(struct cmd_struct *ptr){
         printf("\t5.file_name:%s\n", ptr->file_name);
 }
 
+/*  Sarvesh:    Make a command structure out of string 
+                Check for redierctions/ Files associated
+                Returns a pointer to the structre
+*/
 struct cmd_struct* make_cmd_struct(char *cmd){
     // printf("\tIn make_cmd_struct():\n");
-    printf("In make_cmd_struct.cmd=%s\n", cmd);
+    // printf("In make_cmd_struct.cmd=%s\n", cmd);
     int i=0, j=0;
     int flag = 1;
     int arg_count = 0;
@@ -140,7 +171,7 @@ int find_no_commands(char *line){
         total_commands++;
         token1 = strtok(NULL, "|");
     }
-    printf("Total Commands:%d\n", total_commands);
+    // printf("Total Commands:%d\n", total_commands);
     return total_commands;
 }
 
@@ -148,56 +179,7 @@ int find_no_commands(char *line){
 // a must be a command which does a scanf()
 // b must be a file
 
-
-struct cmd_struct* make_cmd_struct2(char* cmd){
-    printf("In make_cmd_struct.cmd=%s\n", cmd);
-    int i=0, j=0;
-    int flag = 1;
-    int is_whitespace = 1;
-    int arg_count = 0;
-    int redirection_flag = 0;
-    struct cmd_struct *ptr = (struct cmd_struct*) malloc(sizeof(cmd_struct));
-    ptr->arglist = (char**) malloc(sizeof(char**) * 10);
-
-    while(cmd[j] != '\0'){
-        // printf("%c\n", cmd[j]);
-        if(cmd[j] == ' '){
-            /*Previous char was a white space*/
-            if(is_whitespace == 0){
-                printf("\tWord of size:%d from %d to %d:", j-i+1, i, j);
-                int size = j-i, x=0;
-                char str[size+1];
-                for(int k=i; k<j; k++){
-                    str[x++] = cmd[k];
-                }
-                str[x] = '\0';
-                printf("%s\n", str);
-            }   
-            is_whitespace = 1;
-        }
-        else if(cmd[j] != ' '){
-            if(is_whitespace == 1){
-                is_whitespace  = 0;
-                i = j;
-            }
-        }
-        j++;
-    }
-    if(is_whitespace == 0){
-        printf("\tWord of size:%d from %d to %d:", j-i+1, i, j);
-        int size = j-i+1, x=0;
-        char str[size];
-        for(int k=i; k<j; k++){
-            str[x++] = cmd[k];
-        }
-        str[x] = '\0';
-        printf("%s\n", str);
-        
-    }
-
-    return NULL;
-}
-
+/*      Returns a pointer to list of raw unstructured commands      */
 struct cmd_struct**  parse(char **line, int *total_commands){
     // printf("\nIn parse():\n");
     // printf("In parse() function. Line:%s\n", *line);
@@ -205,7 +187,7 @@ struct cmd_struct**  parse(char **line, int *total_commands){
     char input_redirection_delim = '<';
     char output_redirection_delin = '>';
     
-    // Maxmimum Of 10 Commnads in a single line
+    /* Maxmimum Of 10 Commnads in a single line     */
     struct cmd_struct** cmd_list = (struct cmd_struct**)malloc(sizeof(struct cmd_struct**)*10);
     int cmd_count = 0;
     char *token = strtok(*line, "|");
@@ -218,11 +200,7 @@ struct cmd_struct**  parse(char **line, int *total_commands){
         /*
         for multiple redirections
         
-        
-
-        // ptr = make_cmd_struct2(token);
-
-        /**/
+        */
         cmd_list[cmd_count] = (struct cmd_struct*) malloc(sizeof(struct cmd_struct*));
         cmd_list[cmd_count] = ptr;
         
@@ -246,124 +224,8 @@ struct cmd_struct**  parse(char **line, int *total_commands){
 
 
 
-void execute_commands(struct cmd_struct** cmd_list, int total_commands){
-    printf("\nIn execute_commands():\n");
-    printf("\tTotal Commands:%d\n", total_commands);
-    int no_of_pipes = total_commands-1;
-    printf("\tNumber of Pipes required:%d\n", no_of_pipes);
-    // printf("\tOutput:\n\n");
-    int pipe_flag=0;
-    int flag_write_into_pipe=0, flag_read_from_pipe=0;
-    int pfd[2];
-    /*Initialize Pipes*/
-    int pipe_count = 0;
-    int **pfd_arr = (int**)malloc(sizeof(int*) * no_of_pipes);
-    for(int i=0; i<no_of_pipes; i++){
-        pfd_arr[i] = (int*)malloc(sizeof(int)*2);
-    }
 
-    /*Pipe Needed*/
-    // if(total_commands > 1){
-    //     pipe(pfd);
-    // }
-    // for(int i=0; i<total_commands; i++){
-    //     struct cmd_struct *ptr =   cmd_list[i];
-    //     print_cmd_struct(ptr);
-    // }
-
-    
-
-    for(int i=0; i<total_commands; i++){
-        struct cmd_struct *ptr =   cmd_list[i]; 
-        printf("\t%d.Command:%s\n",i+1, ptr->command);
-        // print_cmd_struct(&cmd_list[i]);
-
-        /*Need For Pipe*/
-        // if(i < total_commands-1){
-        //     printf("\t** Need For Pipe. Write into pipe\n");
-        //     printf("\tWrite into pipe no:%d\n", i);
-        //     pipe_flag = 1;
-        //     flag_write_into_pipe = 1;
-        //     flag_read_from_pipe = 1;
-        // }
-        /*Creating Child process to run command*/
-        int cpid = fork();
-        if(cpid < 0){
-            perror("\tfork() failed\n");
-            exit(0);
-        }
-        if(cpid == 0){
-            printf("\tIn child process1.\n");
-            if(ptr->is_out_redirection){
-                /*Closing Screen Output*/
-                printf("\toutput redirection.calling close(1)\n");
-                close(1);
-                int fd_temp = open(ptr->file_name, O_RDWR);
-                printf("\tclose(1) finished\n");
-                printf("\tNew File Descriptor:%d\n", fd_temp);
-                
-            }            
-            if(ptr->is_in_redirection){
-                printf("\tinput redirection.calling close(0)\n");
-                close(0);
-                int fd = open(ptr->file_name, O_RDONLY);
-                printf("\tnew file descriptor fd=%d\n", fd);
-            }
-            if(flag_write_into_pipe){
-                /*Supposed to close(1)*/
-                printf("\tWriting into pipe[1]. and executing command:%d\n", i);
-                close(1);
-                dup(pfd[1]);
-                close(pfd[0]);
-                flag_read_from_pipe = 1;
-                flag_write_into_pipe = 0;
-            }
-            execvp(ptr->command,ptr->arglist);
-        }
-        if(cpid > 0){
-            // wait(NULL);
-            printf("\tWait()1 call returned from child id:%d.In parent process1\n", cpid);
-            if(flag_read_from_pipe){
-                i++;
-                ptr =   cmd_list[i];
-                printf("\tCreating process to read from pipe.\n");
-                int cpid2 = fork();
-                
-                if(cpid2 < 0){
-                    perror("\tfork() failed\n");
-                    exit(0);
-                }
-                if(cpid2 == 0){
-                    printf("\tIn child2 process. which is to read from pipe\n");
-                    close(0);
-                    char str3 [1000];
-                    dup(pfd[0]);
-                    close(pfd[1]);
-                    printf("\tprinting pipe[0]:\n");
-                    // while(read(0, str3,1000) != -1){
-                    //     printf("%s", str3);
-                    // }
-                    printf("\tExecuting Command %d. %s\n", i, ptr->command);
-                    
-                    execvp(ptr->command,ptr->arglist);
-                    printf("\tCommand %d exectued\n", i);
-                    exit(0);
-                    
-                }
-                if(cpid2 > 0){   
-    
-                    printf("\twait()2 call returned from child id:%d\n", cpid2);
-                    
-                }
-            }
-            wait(NULL);     
-        }
-    }
-    printf("Out of for loop. All commands executed\n");
-}
-
-
-
+/*   Check if particular command writes into the pipe       */
 int check_for_write(int command_no, int no_of_pipes){
     if(no_of_pipes == 0)
         return 0;
@@ -374,6 +236,7 @@ int check_for_write(int command_no, int no_of_pipes){
     return 0;
 }
 
+/*   Check if particular command reads from  the pipe       */
 int check_for_read(int command_no, int no_of_pipes){
     if(no_of_pipes == 0)
         return 0;
@@ -384,6 +247,7 @@ int check_for_read(int command_no, int no_of_pipes){
     return 0;
 }
 
+/*   Utility function to execture signle function represented by command structure   */
 void execute_single_command(struct cmd_struct *ptr){
     if(ptr->is_out_redirection){
         /*Closing Screen Output*/
@@ -391,8 +255,7 @@ void execute_single_command(struct cmd_struct *ptr){
         close(1);
         int fd_temp = open(ptr->file_name, O_CREAT|O_RDWR,0666);
         // printf("\tclose(1) finished\n");
-        // printf("\tNew File Descriptor:%d\n", fd_temp);
-                
+        // printf("\tNew File Descriptor:%d\n", fd_temp);      
     }            
     if(ptr->is_in_redirection){
         // printf("\tinput redirection.calling close(0)\n");
@@ -401,21 +264,59 @@ void execute_single_command(struct cmd_struct *ptr){
         // printf("\tnew file descriptor fd=%d\n", fd);
     }
 
-    execvp(ptr->command,ptr->arglist);
+    if(execvp(ptr->command,ptr->arglist) == -1){
+        printf("%s : No such command\n", ptr->command);
+    }
 }
 
-void execute_commands2(struct cmd_struct** cmd_list, int total_commands){
+
+
+/*      Execute list of commands       */
+void execute_commands_list(struct cmd_struct** cmd_list, int total_commands){
     int no_of_pipes = total_commands-1;
     // printf("\n\nIn execute_commands():Total Commands:%d\n\tNumber Of pipes required:%d\n\n", total_commands, no_of_pipes);
     int flag_write_into_pipe=0, flag_read_from_pipe=0, pipe_flag=0;
     int pfd[2];
-    
-
+    int status_child;
+    // code for debugging purpose
     // for(int i=0; i<total_commands; i++){
     //     struct cmd_struct *ptr =   cmd_list[i];
     //     print_cmd_struct(ptr);
     // }printf("\n");
     
+    // if(strcmp(cmd_list[0]->command, "jobs") == 0){
+    //     showJobs();
+    //     return;
+    // }
+    if(strcmp(cmd_list[0]->command, "jobs") == 0){ showJobs(); return; }
+
+    if(strcmp(cmd_list[0]->command, "exit") == 0 || strcmp(cmd_list[0]->command, "quit") == 0){ exit(0); }
+
+    if(strcmp(cmd_list[0]->command, "bg") == 0){
+        if(cmd_list[0]->arg_count == 1){
+            backgound(-1);
+            return;
+        }else if (cmd_list[0]->arg_count == 2){
+            int job_no = cmd_list[0]->arglist[1][1] - '0';
+            backgound(job_no);
+            return;
+        }else{
+            return;
+        }        
+    }
+    if(strcmp(cmd_list[0]->command, "fg") == 0){
+        if(cmd_list[0]->arg_count == 1){
+            foreground(-1);
+            return;
+        }else if (cmd_list[0]->arg_count == 2){
+            int job_no = cmd_list[0]->arglist[1][1] - '0';
+            foreground(job_no);
+            return;
+        }else{
+            return;
+        }        
+    }
+
     /*Initialize Pipes*/
     int pipe_count = 0;
     int **pipe_arr = (int**)malloc(sizeof(int*) * no_of_pipes);
@@ -433,6 +334,8 @@ void execute_commands2(struct cmd_struct** cmd_list, int total_commands){
             exit(1);
         }  
         if(process_arr[i] == 0){
+            signal_init_child();
+                        
             // printf("in child process: process_arr[%d]\n", i);
             if(check_for_read(i, no_of_pipes) == 1){
                 // printf("\tprocess_arr[%d] should read  from pipe no[%d]\n", i, i-1);
@@ -454,8 +357,11 @@ void execute_commands2(struct cmd_struct** cmd_list, int total_commands){
             exit(0);
         }
         if(process_arr[i] > 0){
-            
-            wait(NULL);
+            runnning_proc = process_arr[i];
+            strcpy(runnning_proc_name, cmd_list[i]->command);
+            int child_id = process_arr[i];
+            waitpid(runnning_proc, 0, WUNTRACED);
+            runnning_proc = 0;
             if(check_for_read(i, no_of_pipes) == 1)
                 close(pipe_arr[i-1][0]);
             if(check_for_write(i, no_of_pipes) == 1)
@@ -476,17 +382,18 @@ void reset () {
   printf("\033[0m");
 }
 
-
 int main(int argc, char* argv[]){
-    char* PATH = "/home/luffy/anaconda3/bin:/home/luffy/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin";
+
     char cwd[100];
-    // printf("STDOUT_FILENO:%d\n", STDOUT_FILENO);
-    // getcwd(cwd, sizeof(cwd));
+
+    signal_init_shell();                // Enable shell signal handler
+
+
     if(getcwd(cwd, 100) == NULL){
         perror("getcwd() error\n");
         return 1;
     }
-    char* promt = strcat(cwd, "$");
+    promt = strcat(cwd, "$");
     // printf("cwd:%s\n", cwd);
 
     while(1){
@@ -494,7 +401,7 @@ int main(int argc, char* argv[]){
             perror("getcwd() error\n");
             return 1;
         }
-        char* promt = strcat(cwd, "$");
+        promt = strcat(cwd, "$");
         char *line = NULL;
         size_t len = 0;
         ssize_t linesize = 0;
@@ -502,16 +409,14 @@ int main(int argc, char* argv[]){
         highlight();
         printf("%s", promt);
         reset();printf(" ");
-        
+
         struct cmd_struct** cmd_list = NULL;
         char* op_list = "";
 
 
         linesize = getline(&line, &len, stdin);
         line[linesize-1] = '\0';
-        if(strcmp(line, "exit") == 0)
-            exit(0);
-        
+
         int total_commands = 0;
         cmd_list = parse( &line, &total_commands);
 
@@ -524,8 +429,120 @@ int main(int argc, char* argv[]){
             // }
         
         
-        execute_commands2(cmd_list, total_commands);
+        execute_commands_list(cmd_list, total_commands);
     }
     
     return 0;
+}
+
+/*      SIGNAL HANDLING CODE                                   */
+
+void signal_init_shell(void){
+    struct sigaction sigint, sigtstp;
+    sigint.sa_handler = int_handler;
+    sigtstp.sa_handler = stop_handler;
+    sigint.sa_flags = sigtstp.sa_flags = SA_RESTART;
+    sigemptyset(&sigtstp.sa_mask);
+    sigemptyset(&sigint.sa_mask);
+    sigaction(SIGINT, &sigint, NULL);
+    sigaction(SIGTSTP, &sigtstp, NULL);
+}
+
+void int_handler(int signo){
+    if(runnning_proc==0){       // Parent Shell
+        // highlight();
+        // printf("%s", promt);
+        // reset();printf(" ");
+        printf("\n");
+        fflush(stdout);
+        exit(0); //TODO: Comment this before submission
+        return;
+    }
+    else{                       // Child process 
+        kill(runnning_proc, SIGINT);
+        runnning_proc=0;
+        printf("\n");
+        fflush(stdout);
+    }
+}
+
+void stop_handler(int signo){
+    if(runnning_proc == 0){
+        exit(0);
+    }else{
+        // printf("in stop hadler:runnning_proc:%d runnning_proc_name:%s\n",runnning_proc, runnning_proc_name);
+        if(check_for_jobs(job_list, runnning_proc) == 1){ // Already present in job list
+            // printf("Job Already present in job list. Do not increase counter\n");
+            stopJob(&job_list, runnning_proc);
+        }else{
+            stopped_job_counter++;
+            insertJob( &job_list,stopped_job_counter, runnning_proc, runnning_proc_name);
+        }
+
+        printf("\n[%d]+ Stopped", stopped_job_counter); printf("\t\t%s\n", runnning_proc_name);
+        kill(runnning_proc, SIGTSTP);
+        fflush(stdout);
+        runnning_proc = 0;
+        strcpy(runnning_proc_name,"");
+    }
+}
+
+
+
+void signal_init_child(){
+    signal(SIGINT, SIG_DFL);
+    signal(SIGTSTP, SIG_DFL);
+}
+
+void backgound(int job_no){
+    // printf("In background(). job_no:%d\n", job_no);
+    int cpid;
+    int job_index = job_no!=-1 ? job_no : 1;
+    char curr_proc_name[20];
+    cpid = get_proc_to_run( &job_list,job_no, curr_proc_name);
+
+    if(cpid == -1){
+        // printf("No jobs pending\n");
+        return;
+    }
+    // printf("Process found. job index:%d, pid:%d name:%s\n", job_index, cpid, curr_proc_name);
+    runnning_proc = cpid;
+    kill(cpid, SIGCONT);
+    return;
+}
+
+void foreground(int job_no){
+    // printf("In forground(). job_no:%d\n", job_no);
+    int cpid;
+    int job_index = job_no!=-1 ? job_no : 1;
+    char curr_proc_name[20];
+    cpid = get_proc_to_run( &job_list,job_no, curr_proc_name);
+
+    if(cpid == -1){
+        // printf("No jobs pending\n");
+        return;
+    }
+    // printf("Process found. job index:%d, pid:%d name:%s\n", job_index, cpid, curr_proc_name);
+    runnning_proc = cpid;
+    kill(cpid, SIGCONT);
+    waitpid(runnning_proc, 0, WUNTRACED);                       // Suspend shell process and wait for this forground process to finish
+    runnning_proc = 0;
+    return;
+}
+
+void showJobs(){
+    // printf("In showjobs()\n");
+    struct job* temp = job_list;
+    while(temp!=NULL){
+        // printf("%d %d %s ", temp->job_id, temp->pid, temp->name);
+        printf("[%d]+ ", temp->job_id);
+        if(temp->status == RUNNING){
+            printf("Running");
+        } 
+        else {
+            printf("Stopped");
+        }
+        printf("\t\t%s\n", temp->name);
+        temp = temp->next;
+    }
 }

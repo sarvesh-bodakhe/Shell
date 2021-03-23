@@ -26,3 +26,4 @@ int get_proc_to_run(struct job** job_list, int job_no, char* proc_name);
 int check_for_jobs(struct job* job_list, int pid);
 void stopJob(struct job** job_list, int pid);
 char* get_job_name(struct job* job_list, int job_no);
+void make_job_running(struct job** job_list, int job_no);

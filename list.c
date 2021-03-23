@@ -142,3 +142,15 @@ char* get_job_name(struct job* job_list, int job_no){
     }
 
 }
+
+void make_job_running(struct job** job_list, int job_no){
+    struct job *temp = *job_list;
+    while(temp!=NULL){
+        if(temp->job_id == job_no){
+            temp->status = RUNNING;
+            return ;
+        }
+        temp = temp->next;
+    }
+    return ;
+}

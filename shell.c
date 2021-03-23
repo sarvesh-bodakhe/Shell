@@ -26,6 +26,7 @@ void stop_handler(int);
 void cont_handler(int);
 void backgound();
 void foreground();
+void add_background_running_job(int runnning_proc,char* runnning_proc_name);
 void showJobs();
 
 
@@ -43,6 +44,7 @@ struct cmd_struct{
     // For miltiple redirections
     char **file_names;	
     char *redirections;
+    int is_background;
 }cmd_struct;
 
 
@@ -66,12 +68,14 @@ void print_cmd_struct(struct cmd_struct *ptr){
         printf("%s ",  ptr->arglist[i]);
     }
     printf("\n");
+    if(ptr->is_background)
+        printf("\t4.Background Process\n");
     if(ptr->is_in_redirection == 1)
-        printf("\t4.Input Redirection\n");
+        printf("\t5.Input Redirection\n");
     if(ptr->is_out_redirection == 1)
-        printf("\t4.Output Redirection\n"); 
+        printf("\t6.Output Redirection\n"); 
     if(ptr->file_name)
-        printf("\t5.file_name:%s\n", ptr->file_name);
+        printf("\t7.file_name:%s\n", ptr->file_name);
 }
 
 /*  Sarvesh:    Make a command structure out of string 
@@ -159,7 +163,11 @@ struct cmd_struct* make_cmd_struct(char *cmd){
     // printf("Command:%s\n", ptr->arglist[0]);
     ptr->command = ptr->arglist[0];
     ptr->arg_count = arg_count;
-
+    if(strcmp(ptr->arglist[ptr->arg_count -1], "&") == 0){
+        // printf("in make struct. this is background process\n");
+        ptr->is_background = 1;
+        ptr->arg_count -= 1;
+    }
     // print_cmd_struct(ptr);
     return ptr;
 }
@@ -328,6 +336,9 @@ void execute_commands_list(struct cmd_struct** cmd_list, int total_commands){
     }
 
     for(int i=0; i<total_commands; i++){
+        int is_background = 0;
+        if(cmd_list[i]->is_background ==1) is_background = 1;
+
         process_arr[i] = fork();
         if(process_arr[i] == -1){
             perror("process_arr[i] = fork() failed\n");
@@ -360,8 +371,14 @@ void execute_commands_list(struct cmd_struct** cmd_list, int total_commands){
             runnning_proc = process_arr[i];
             strcpy(runnning_proc_name, cmd_list[i]->command);
             int child_id = process_arr[i];
-            waitpid(runnning_proc, 0, WUNTRACED);
+            if(!is_background){
+                waitpid(runnning_proc, 0, WUNTRACED);
+            }else{                                          // Background process . Do Not wait 
+                // printf("background process");
+                add_background_running_job(runnning_proc, runnning_proc_name);
+            }
             runnning_proc = 0;
+            strcpy(runnning_proc_name,"");
             if(check_for_read(i, no_of_pipes) == 1)
                 close(pipe_arr[i-1][0]);
             if(check_for_write(i, no_of_pipes) == 1)
@@ -492,6 +509,12 @@ void stop_handler(int signo){
 void signal_init_child(){
     signal(SIGINT, SIG_DFL);
     signal(SIGTSTP, SIG_DFL);
+}
+
+void add_background_running_job(int runnning_proc,char* runnning_proc_name){
+    stopped_job_counter++;
+    insertJob(&job_list, stopped_job_counter, runnning_proc, runnning_proc_name);       // Inserts stopped job in job list
+    make_job_running(&job_list, stopped_job_counter);
 }
 
 void backgound(int job_no){

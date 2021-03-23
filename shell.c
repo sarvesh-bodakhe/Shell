@@ -467,25 +467,27 @@ void signal_init_shell(void){
 
 void int_handler(int signo){
     if(runnning_proc==0){       // Parent Shell
-        // highlight();
-        // printf("%s", promt);
-        // reset();printf(" ");
+        highlight();
+        printf("%s", promt);
+        reset();
+        printf(" ");
         printf("\n");
         fflush(stdout);
-        exit(0); //TODO: Comment this before submission
+        // exit(0); //TODO: Comment this before submission
         return;
     }
     else{                       // Child process 
         kill(runnning_proc, SIGINT);
         runnning_proc=0;
-        printf("\n");
         fflush(stdout);
     }
 }
 
 void stop_handler(int signo){
     if(runnning_proc == 0){
-        exit(0);
+        // kill(runnning_proc, SIGTSTP);
+        kill(runnning_proc, SIGSTOP);
+        return;
     }else{
         // printf("in stop hadler:runnning_proc:%d runnning_proc_name:%s\n",runnning_proc, runnning_proc_name);
         if(check_for_jobs(job_list, runnning_proc) == 1){ // Already present in job list
@@ -497,7 +499,8 @@ void stop_handler(int signo){
         }
 
         printf("\n[%d]+ Stopped", stopped_job_counter); printf("\t\t%s\n", runnning_proc_name);
-        kill(runnning_proc, SIGTSTP);
+        // kill(runnning_proc, SIGTSTP);
+        kill(runnning_proc, SIGSTOP);
         fflush(stdout);
         runnning_proc = 0;
         strcpy(runnning_proc_name,"");

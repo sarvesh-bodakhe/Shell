@@ -28,6 +28,7 @@ void backgound();
 void foreground();
 void add_background_running_job(int runnning_proc,char* runnning_proc_name);
 void showJobs();
+void kill_job(int job_no);
 
 
 /*
@@ -324,6 +325,12 @@ void execute_commands_list(struct cmd_struct** cmd_list, int total_commands){
             return;
         }        
     }
+    if(strcmp(cmd_list[0]->command, "kill") == 0 && cmd_list[0]->arglist[1][0]=='%'){
+        printf("Kill Job Command");
+        int job_no = cmd_list[0]->arglist[1][1] - '0';
+        kill_job(job_no);
+        return;
+    }
 
     /*Initialize Pipes*/
     int pipe_count = 0;
@@ -484,6 +491,8 @@ void int_handler(int signo){
 }
 
 void stop_handler(int signo){
+    printf("stop handler\n");
+    printf("running proc:%d\t running proc name:%s\n", runnning_proc, runnning_proc_name);
     if(runnning_proc == 0){
         // kill(runnning_proc, SIGTSTP);
         kill(runnning_proc, SIGSTOP);
@@ -501,9 +510,10 @@ void stop_handler(int signo){
         printf("\n[%d]+ Stopped", stopped_job_counter); printf("\t\t%s\n", runnning_proc_name);
         // kill(runnning_proc, SIGTSTP);
         kill(runnning_proc, SIGSTOP);
-        fflush(stdout);
         runnning_proc = 0;
-        strcpy(runnning_proc_name,"");
+        strcpy(runnning_proc_name,"SHELL");
+        fflush(stdout);
+        printf("running proc:%d\t running proc name:%s\n", runnning_proc, runnning_proc_name);
     }
 }
 
@@ -521,7 +531,8 @@ void add_background_running_job(int runnning_proc,char* runnning_proc_name){
 }
 
 void backgound(int job_no){
-    // printf("In background(). job_no:%d\n", job_no);
+    printf("In background(). job_no:%d\n", job_no);
+    printf("running proc:%d\t running proc name:%s\n", runnning_proc, runnning_proc_name);
     int cpid;
     int job_index = job_no!=-1 ? job_no : 1;
     char curr_proc_name[20];
@@ -531,28 +542,33 @@ void backgound(int job_no){
         // printf("No jobs pending\n");
         return;
     }
-    // printf("Process found. job index:%d, pid:%d name:%s\n", job_index, cpid, curr_proc_name);
-    runnning_proc = cpid;
+    printf("Process found. job index:%d, pid:%d proc name:%s\n", job_index, cpid, curr_proc_name);
+    runnning_proc = 0;
+    strcpy(runnning_proc_name, "SHELL");
+    printf("running proc:%d\t running proc name:%s\n", runnning_proc, runnning_proc_name);
     kill(cpid, SIGCONT);
     return;
 }
 
 void foreground(int job_no){
-    // printf("In forground(). job_no:%d\n", job_no);
+    printf("In forground(). job_no:%d\n", job_no);
     int cpid;
     int job_index = job_no!=-1 ? job_no : 1;
     char curr_proc_name[20];
-    cpid = get_proc_to_run( &job_list,job_no, curr_proc_name);
+    cpid = get_proc_to_run_fg( &job_list,job_no, curr_proc_name);
 
     if(cpid == -1){
         // printf("No jobs pending\n");
         return;
     }
-    // printf("Process found. job index:%d, pid:%d name:%s\n", job_index, cpid, curr_proc_name);
+    printf("Process found. job index:%d, pid:%d name:%s\n", job_index, cpid, curr_proc_name);
     runnning_proc = cpid;
+    strcpy(runnning_proc_name, curr_proc_name); 
+    printf("running proc:%d\t running proc name:%s\n", runnning_proc, runnning_proc_name);
     kill(cpid, SIGCONT);
     waitpid(runnning_proc, 0, WUNTRACED);                       // Suspend shell process and wait for this forground process to finish
     runnning_proc = 0;
+    strcpy(runnning_proc_name, "SHELL"); 
     return;
 }
 
@@ -568,7 +584,19 @@ void showJobs(){
         else {
             printf("Stopped");
         }
+        printf("\t\t%d", temp->pid);
         printf("\t\t%s\n", temp->name);
+        
         temp = temp->next;
+    }
+}
+
+void kill_job(int job_no){
+    char name[20];
+    int pid = get_proc_to_kill(job_list,job_no, name);
+    if(pid != -1){
+        printf("Sending kill signal to process:%d name:%s\n", pid, name);
+        kill(9, pid);
+        removeJob(&job_list,  job_no);
     }
 }

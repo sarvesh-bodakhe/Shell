@@ -71,8 +71,10 @@ int get_proc_to_run(struct job** job_list, int job_no, char* proc_name){
         while(temp != NULL){
             if(temp->status == STOPPED){
                 temp->status = RUNNING;
-                return temp->pid;
                 strcpy(proc_name, temp->name);
+                printf("in get_proc_to_run. proc name:%s\n", temp->name);
+                return temp->pid;
+                
             }
             temp = temp->next;
         }
@@ -103,6 +105,47 @@ int get_proc_to_run(struct job** job_list, int job_no, char* proc_name){
     // }
 
     return ret;
+}
+
+int get_proc_to_run_fg(struct job** job_list, int job_no, char* proc_name){
+    if(*job_list == NULL){
+        // printf("No jobs pending\n");
+        return -1;
+    }
+    struct job* temp = *job_list;
+    int ret = -1;
+    if(job_no == -1){
+        while(temp != NULL){
+            if(temp->status == RUNNING){
+                // temp->status = RUNNING;
+                printf("in get_proc_to_run_fg. proc name:%s\n", temp->name);
+                strcpy(proc_name, temp->name);
+                return temp->pid;
+                
+            }
+            temp = temp->next;
+        }
+    }
+    else{
+        while(temp != NULL){
+            if(temp->job_id == job_no){
+                if(temp->status == RUNNING){
+                    // printf("Job found with job_no:%d\n", job_no);
+                    // temp->status = RUNNING;   
+                    printf("in get_proc_to_run_fg. proc name:%s\n", temp->name);
+                    strcpy(proc_name, temp->name);
+                    return temp->pid;
+                }else{          // Make job running
+                    temp->status = STOPPED;
+                    printf("in get_proc_to_run_fg. proc name:%s\n", temp->name);
+                    strcpy(proc_name, temp->name);
+                    return temp->pid;
+                    // return -1;
+                }
+            }
+            temp = temp->next;
+        }
+    }
 }
 
 int check_for_jobs(struct job* job_list, int pid){
@@ -154,3 +197,16 @@ void make_job_running(struct job** job_list, int job_no){
     }
     return ;
 }
+
+int get_proc_to_kill(struct job *job_list,int job_no, char* name){
+    struct job* temp = job_list;
+    while(temp){
+        if(temp->job_id == job_no){
+            strcpy( name, temp->name);
+            printf("Process name to kill:%s %d\n", name, temp->pid);
+            return temp->pid;
+        }
+        temp = temp->next;
+    }
+    return -1;
+}  

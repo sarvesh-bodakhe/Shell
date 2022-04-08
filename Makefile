@@ -5,4 +5,4 @@ shell:	main.c shell.c  list.c signal.c
 	${CC} main.c shell.c  list.c signal.c -o shell
 
 clean: 
-	rm shell
+	rm shellg	

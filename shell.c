@@ -24,14 +24,12 @@ void print_cmd_struct(struct cmd_struct *ptr)
         printf("\t7.file_name:%s\n", ptr->file_name);
 }
 
-/*  Sarvesh:    Make a command structure out of string 
-                Check for redierctions/ Files associated
-                Returns a pointer to the structre
+/*  Make a command structure out of string 
+    Check for redierctions/ Files associated
+    Returns a pointer to the structre
 */
 struct cmd_struct *make_cmd_struct(char *cmd)
 {
-    // printf("\tIn make_cmd_struct():\n");
-    // printf("In make_cmd_struct.cmd=%s\n", cmd);
     int i = 0, j = 0;
     int flag = 1;
     int arg_count = 0;
@@ -40,12 +38,10 @@ struct cmd_struct *make_cmd_struct(char *cmd)
     ptr->arglist = (char **)malloc(sizeof(char **) * 10);
     while (cmd[j] != '\0')
     {
-        // printf("\t%d:%c\n", j, cmd[j]);
         if (cmd[j] == ' ')
         {
             if (flag == 0)
             {
-                // printf("\tWord from size=%d. %d to %d:",j-i+1, i, j);
                 int size = j - i;
                 char *str = (char *)malloc(sizeof(char) * (size + 1));
                 int x = 0;
@@ -54,11 +50,9 @@ struct cmd_struct *make_cmd_struct(char *cmd)
                     str[x++] = cmd[k];
                 }
                 str[x] = '\0';
-                // printf("%s\n", str);
-                /* Redirection Operator has encountered */
+
                 if (redirection_flag == 1)
                 {
-                    // printf("\tFile after redirection:%s\n", str);
                     ptr->file_name = (char *)malloc(sizeof(str));
                     ptr->file_name = str;
                     flag = 1;
@@ -66,7 +60,6 @@ struct cmd_struct *make_cmd_struct(char *cmd)
                 }
                 if (strcmp(str, "<") == 0)
                 {
-                    // printf("\tInput Redirection Detected:%s\n", str);
                     ptr->is_in_redirection = 1;
                     redirection_flag = 1;
                     flag = 1;
@@ -74,7 +67,6 @@ struct cmd_struct *make_cmd_struct(char *cmd)
                 }
                 if (strcmp(str, ">") == 0)
                 {
-                    // printf("\tOutput Redirection Detected:%s\n", str);
                     ptr->is_out_redirection = 1;
                     flag = 1;
                     redirection_flag = 1;
@@ -108,7 +100,6 @@ struct cmd_struct *make_cmd_struct(char *cmd)
         str[x] = '\0';
         if (redirection_flag == 1)
         {
-            // printf("\tFile after redirectoin:%s\n", str);
             ptr->file_name = (char *)malloc(sizeof(str));
             ptr->file_name = str;
             flag = 1;
@@ -120,16 +111,13 @@ struct cmd_struct *make_cmd_struct(char *cmd)
             arg_count++;
         }
     }
-    // printf("Command:%s\n", ptr->arglist[0]);
     ptr->command = ptr->arglist[0];
     ptr->arg_count = arg_count;
     if (strcmp(ptr->arglist[ptr->arg_count - 1], "&") == 0)
     {
-        // printf("in make struct. this is background process\n");
         ptr->is_background = 1;
         ptr->arg_count -= 1;
     }
-    // print_cmd_struct(ptr);
     return ptr;
 }
 
@@ -142,7 +130,6 @@ int find_no_commands(char *line)
         total_commands++;
         token1 = strtok(NULL, "|");
     }
-    // printf("Total Commands:%d\n", total_commands);
     return total_commands;
 }
 
@@ -153,8 +140,6 @@ int find_no_commands(char *line)
 /*      Returns a pointer to list of raw unstructured commands      */
 struct cmd_struct **parse(char **line, int *total_commands)
 {
-    // printf("\nIn parse():\n");
-    // printf("In parse() function. Line:%s\n", *line);
     char pipeline_delim = '|';
     char input_redirection_delim = '<';
     char output_redirection_delin = '>';
@@ -163,35 +148,17 @@ struct cmd_struct **parse(char **line, int *total_commands)
     struct cmd_struct **cmd_list = (struct cmd_struct **)malloc(sizeof(struct cmd_struct **) * 10);
     int cmd_count = 0;
     char *token = strtok(*line, "|");
-    // printf("\tTravesring All Commands\n");
     while (token != NULL)
     {
-        // printf("\tCommand No.%d => %s\n", cmd_count+1, token);
-        // Make a command struct from string pointed by ptr
         struct cmd_struct *ptr = (struct cmd_struct *)malloc(sizeof(struct cmd_struct));
         ptr = make_cmd_struct(token);
-        /*
-        for multiple redirections
-        
-        */
+
         cmd_list[cmd_count] = (struct cmd_struct *)malloc(sizeof(struct cmd_struct *));
         cmd_list[cmd_count] = ptr;
-
         token = strtok(NULL, "|");
         cmd_count++;
     }
-    // printf("Total commands In Parse():%d\n", cmd_count);
     *total_commands = cmd_count;
-
-    /*
-        printf("*** Printing cmd_list in parse\n");
-        for(int i=0; i<cmd_count; i++){
-            printf("%d=>\n", i);
-            print_cmd_struct(cmd_list[i]);
-        }
-        printf("***\n");
-    */
-
     return cmd_list;
 }
 
@@ -219,24 +186,18 @@ int check_for_read(int command_no, int no_of_pipes)
     return 0;
 }
 
-/*   Utility function to execture signle function represented by command structure   */
+/* Execture signle function represented by command structure   */
 void execute_single_command(struct cmd_struct *ptr)
 {
     if (ptr->is_out_redirection)
     {
-        /*Closing Screen Output*/
-        // printf("\toutput redirection.calling close(1)\n");
         close(1);
         int fd_temp = open(ptr->file_name, O_CREAT | O_RDWR, 0666);
-        // printf("\tclose(1) finished\n");
-        // printf("\tNew File Descriptor:%d\n", fd_temp);
     }
     if (ptr->is_in_redirection)
     {
-        // printf("\tinput redirection.calling close(0)\n");
         close(0);
         int fd = open(ptr->file_name, O_RDONLY);
-        // printf("\tnew file descriptor fd=%d\n", fd);
     }
 
     if (execvp(ptr->command, ptr->arglist) == -1)
@@ -245,24 +206,14 @@ void execute_single_command(struct cmd_struct *ptr)
     }
 }
 
-/*      Execute list of commands       */
+
 void execute_commands_list(struct cmd_struct **cmd_list, int total_commands)
 {
     int no_of_pipes = total_commands - 1;
-    // printf("\n\nIn execute_commands():Total Commands:%d\n\tNumber Of pipes required:%d\n\n", total_commands, no_of_pipes);
     int flag_write_into_pipe = 0, flag_read_from_pipe = 0, pipe_flag = 0;
     int pfd[2];
     int status_child;
-    // code for debugging purpose
-    // for(int i=0; i<total_commands; i++){
-    //     struct cmd_struct *ptr =   cmd_list[i];
-    //     print_cmd_struct(ptr);
-    // }printf("\n");
 
-    // if(strcmp(cmd_list[0]->command, "jobs") == 0){
-    //     showJobs();
-    //     return;
-    // }
     if (strcmp(cmd_list[0]->command, "jobs") == 0)
     {
         showJobs();
@@ -313,13 +264,11 @@ void execute_commands_list(struct cmd_struct **cmd_list, int total_commands)
     }
     if (strcmp(cmd_list[0]->command, "kill") == 0 && cmd_list[0]->arglist[1][0] == '%')
     {
-        // printf("Kill Job Command");
         int job_no = cmd_list[0]->arglist[1][1] - '0';
         kill_job(job_no);
         return;
     }
 
-    /*Initialize Pipes*/
     int pipe_count = 0;
     int **pipe_arr = (int **)malloc(sizeof(int *) * no_of_pipes);
     int *process_arr = (int *)malloc(sizeof(int) * total_commands);
@@ -345,11 +294,8 @@ void execute_commands_list(struct cmd_struct **cmd_list, int total_commands)
         if (process_arr[i] == 0)
         {
             signal_init_child();
-
-            // printf("in child process: process_arr[%d]\n", i);
             if (check_for_read(i, no_of_pipes) == 1)
             {
-                // printf("\tprocess_arr[%d] should read  from pipe no[%d]\n", i, i-1);
                 close(0);
                 char str3[100];
                 dup(pipe_arr[i - 1][0]);
@@ -357,8 +303,6 @@ void execute_commands_list(struct cmd_struct **cmd_list, int total_commands)
             }
             if (check_for_write(i, no_of_pipes) == 1)
             {
-                // printf("\tprocess_arr[%d] should write into pipe no[%d]\n", i, i);
-                // printf("\tpipe[%d] created\n", i);
                 close(1);
                 dup(pipe_arr[i][1]);
                 close(pipe_arr[i][0]);
@@ -388,10 +332,9 @@ void execute_commands_list(struct cmd_struct **cmd_list, int total_commands)
                 close(pipe_arr[i - 1][0]);
             if (check_for_write(i, no_of_pipes) == 1)
                 close(pipe_arr[i][1]);
-            // printf("\tin parent of process[%d]\n", i);
+     
         }
     }
-    // printf("Out Of the for loop\n");
 }
 
 void highlight()

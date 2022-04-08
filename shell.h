@@ -22,9 +22,7 @@ struct cmd_struct
     int is_background;
 } cmd_struct;
 
-/*
-    Sarvesh:    Structure to hold information about signle command line
-*/
+/* Structure to hold information about signle command line */
 struct cmd_line_struct
 {
     struct cmd_struct *cmd_list;

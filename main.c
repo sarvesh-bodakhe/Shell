@@ -5,8 +5,8 @@
 int main(){
     
     char cwd[100];
-
-    signal_init_shell(); // Enable shell signal handler
+    /* Enable shell signal handler */
+    signal_init_shell(); 
 
     if (getcwd(cwd, 100) == NULL)
     {
@@ -14,7 +14,6 @@ int main(){
         return 1;
     }
     promt = strcat(cwd, "$");
-    // printf("cwd:%s\n", cwd);
 
     while (1)
     {
@@ -41,14 +40,7 @@ int main(){
 
         int total_commands = 0;
         cmd_list = parse(&line, &total_commands);
-
-        // printf("\n\nTotal Commands in main():%d\n\n\n", total_commands);
-        // printf("*** Printing cmd_list in main()\n");
-        // for(int i=0; i<total_commands; i++){
-        //     printf("%d=>\n", i);
-        //     print_cmd_struct(cmd_list[i]);
-        // }
-
+        
         execute_commands_list(cmd_list, total_commands);
     }
 

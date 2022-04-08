@@ -7,13 +7,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <signal.h>
-// #include "list.h"
 
 extern struct job *job_list;
 
-/*
- *  Signal Handling
- * */
 void signal_init_shell(void);
 void signal_init_child();
 void int_handler(int);
